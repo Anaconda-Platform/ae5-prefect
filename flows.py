@@ -2,25 +2,52 @@ import prefect
 from prefect import Flow, task
 from prefect.schedules import IntervalSchedule
 from datetime import timedelta, datetime
+from prefect.engine.executors import DaskExecutor
+from prefect.environments.execution import RemoteEnvironment
 
-import time
+import random
+from time import sleep
 
 schedule = IntervalSchedule(
-    start_date=datetime.utcnow() + timedelta(seconds=1),
-    interval=timedelta(minutes=5),
+    start_date=datetime.utcnow() + timedelta(seconds=10),
+    interval=timedelta(minutes=60),
 )
 
 @task
-def run():
+def inc(x):
     logger = prefect.context.get("logger")
-    results = []
-    for x in range(3):
-        results.append(str(x + 1))
-        logger.info("Hello Anaconda Enterprise! run {}".format(x + 1))
-        time.sleep(3)
-    return results
+    logger.info(f"Task started: {datetime.now().strftime('%H:%M:%S.%f')}")
+    sleep(random.uniform(0.5,1.5))
+    return x + 1
+
+
+@task
+def dec(x):
+    logger = prefect.context.get("logger")
+    logger.info(f"Task started: {datetime.now().strftime('%H:%M:%S.%f')}")
+    sleep(random.uniform(0.5,1.5))
+    return x - 1
+
+
+@task
+def add(x, y):
+    logger = prefect.context.get("logger")
+    logger.info(f"Task started: {datetime.now().strftime('%H:%M:%S.%f')}")
+    sleep(random.uniform(0.5,1.5))
+    return x + y
+
+
+@task(name="sum")
+def list_sum(arr):
+    logger = prefect.context.get("logger")
+    logger.info(f"Task started: {datetime.now().strftime('%H:%M:%S.%f')}")
+    return sum(arr)
+
 
 with Flow("Hello Anaconda Enterprise", schedule=schedule) as flow:
-    results = run()
+    incs = inc.map(x=range(100))
+    decs = dec.map(x=range(100))
+    adds = add.map(x=incs, y=decs)
+    total = list_sum(adds)
 
 flow.register(project_name="Hello Anaconda Enterprise")
